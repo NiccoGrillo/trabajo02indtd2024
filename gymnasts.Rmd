@@ -23,12 +23,7 @@ library(htmltools)
 library(webshot)
 
 
-source("~/poli/TD/TDecisionCodigo/teoriadecision_funciones_multicriterio.R")
-source("~/poli/TD/TDecisionCodigo/teoriadecision_funciones_multicriterio_utiles.R")
-source("~/poli/TD/TDecisionCodigo/teoriadecision_funciones_multicriterio_diagram.R")
-
-
-
+source("~/poli/TD/TDecisionCodigo/teoriadecision_funciones_multicriterio.R") #SOSTITUIR CON LA RUTA DEL ARCHIVO
 ```
 
 ```{r}
@@ -158,13 +153,24 @@ head(datos_evaluacion_limpios)
 ```
 
 
-Aggragacion por pais
+Aggragacion por pais y filtro
 
 ```{r}
-## Agregación por País
+# --- Filtrar países con al menos 300 apariciones ---
 
-# Calcular métricas promedio por país
-datos_pais <- datos_evaluacion %>%
+# Calcular el número de apariciones por país
+conteo_paises <- datos_evaluacion %>%
+  group_by(Country) %>%
+  summarise(Count = n())
+
+# Filtrar los países con al menos 300 apariciones
+paises_validos <- conteo_paises %>%
+  filter(Count >= 400) %>%
+  pull(Country)
+
+# Filtrar el conjunto de datos para incluir solo los países válidos
+datos_pais_filtrados <- datos_evaluacion %>%
+  filter(Country %in% paises_validos) %>%
   group_by(Country) %>%
   summarise(
     Promedio_D_Score = mean(D_Score, na.rm = TRUE),
@@ -173,12 +179,17 @@ datos_pais <- datos_evaluacion %>%
     Importancia_Media_Competencia = mean(Competicion, na.rm = TRUE),
     Importancia_Media_Ronda = mean(Ronda, na.rm = TRUE)
   )
-datos_pais <- data.frame(datos_pais)
-rownames(datos_pais) <- datos_pais$Country
-datos_pais <- datos_pais[, -1]
 
-# Mostrar la tabla con los valores promedio por país
-head(datos_pais, 10)
+# Convertir a un data frame y ajustar el formato
+datos_pais_filtrados <- data.frame(datos_pais_filtrados)
+rownames(datos_pais_filtrados) <- datos_pais_filtrados$Country
+datos_pais_filtrados <- datos_pais_filtrados[, -1]
+
+# Mostrar los primeros 10 países con métricas promedio
+head(datos_pais_filtrados, 10)
+#los paises que quedan
+rownames(datos_pais_filtrados)
+
 ```
 
 ## Nadir normalizacion
@@ -186,6 +197,7 @@ head(datos_pais, 10)
 
 ```{r}
 # Prepare decision matrix for Nadir standardization
+datos_pais <- datos_pais_filtrados
 matriz_decision <- multicriterio.crea.matrizdecision(
   vector_matporfilas = as.numeric(as.matrix(datos_pais)), # Columns to standardize
   numalternativas = nrow(datos_pais),
@@ -235,10 +247,13 @@ head(matriz_homogeneizada_promethee)
 criteria <- c("Promedio_D_Score", "Promedio_E_Score", "Promedio_Penalty", 
               "Importancia_Media_Competencia", "Importancia_Media_Ronda")
 
-# Create a pairwise comparison matrix for criteria based on subjective judgments
-# Example: D_Score > E_Score > Penalty > Competition Importance > Round Importance
+#  D_Score > E_Score > Penalty > Competition Importance > Round Importance
 ahp_matrix <- multicriterio.crea.matrizvaloraciones(
-  vector_matporfilas = c(1, 2, 4, 6, 8, 1/2, 1, 2, 4, 6, 1/4, 1/2, 1, 2, 4, 1/6, 1/4, 1/2, 1, 2, 1/8, 1/6, 1/4, 1/2, 1),
+  vector_matporfilas = c(1,     1,   2,   3, 4,
+                         1,     1,   2,   3, 4,
+                         1/2, 1/2,   1,   2, 3,
+                         1/3, 1/3, 1/2,   1, 2,
+                         1/4, 1/4, 1/3, 1/2, 1),
   numalternativas = length(criteria),
   v.nombres.alternativas = criteria
 )
@@ -296,7 +311,127 @@ if (coef_inconsistencia$RI.coef.inconsistencia < 0.1) {
 
 
 
+## Electre I
+
+```{r}
+# Aplicar el método ELECTRE_I utilizando las funciones proporcionadas
+
+# Parámetros del método ELECTRE_I
+nivel_concordancia <- 0.5  # Nivel mínimo de concordancia
+umbral_no_se_compensan <- rep(Inf, ncol(matriz_homogeneizada))  # Umbral de no compensación (Inf para criterios de maximización)
+
+# Ejecutar el método ELECTRE_I
+resultados_electre <- multicriterio.metodoELECTRE_I(
+  tabdecs.X = matriz_homogeneizada,  # Matriz normalizada por el método Nadir
+  pesos.criterios = ahp_weights,  # Pesos calculados previamente con AHP
+  nivel.concordancia.minimo.alpha = nivel_concordancia,  # Nivel de concordancia
+  no.se.compensan = umbral_no_se_compensan  # Umbrales de no compensación
+)
+
+# Mostrar los resultados
+cat("Índice de concordancia:\n")
+print(resultados_electre$ind.concordancia)
+
+cat("\nÍndice de discordancia:\n")
+print(resultados_electre$ind.discordancia)
+
+cat("\nRelación de dominancia:\n")
+print(resultados_electre$relacion.dominante)
+
+cat("\nNúcleo aproximado de alternativas no dominadas:\n")
+print(resultados_electre$nucleo_aprox)
+
+```
+
+la sola alternativa del nucleo es la mejor alternativa:
+```{r}
+# Mostrar la mejor alternativa según el núcleo aproximado
+mejor_alternativa <- rownames(datos_pais)[resultados_electre$nucleo_aprox]
+mejor_alternativa
+
+```
+
+Enconteces es la Francia exactamente come se esperaba por el ranking de AHP
 
 
+```{r}
+library(qgraph)
+qgraph::qgraph(resultados_electre$relacion.dominante)
+```
+Se puede ver que Francia es la mejor alternativa, dado que no es dominada por ninguna otra alternativa. El segundo pais es la España, seguido por la Gran Bretaña.
+
+
+## Promethee 1
+
+```{r}
+## PROMETHEE I y II: Implementación en el análisis
+
+# Definir pesos obtenidos con AHP
+pesos_criterios <- c(
+  Promedio_D_Score = ahp_weights["Promedio_D_Score"],
+  Promedio_E_Score = ahp_weights["Promedio_E_Score"],
+  Promedio_Penalty = ahp_weights["Promedio_Penalty"],
+  Importancia_Media_Competencia = ahp_weights["Importancia_Media_Competencia"],
+  Importancia_Media_Ronda = ahp_weights["Importancia_Media_Ronda"]
+)
+
+# Crear una tabla de funciones de preferencia
+tab_fpref <- data.frame(
+  tipo = c(5, 5, 1, 5, 5),  # Usual solo para penalty, otros lineales
+  qi = c(0.1, 0.05, 0, 0.1, 0.2),    # Umbral de indiferencia (no aplicable para función lineal y usual)
+  pi = c(0.1, 0.05, 0, 0.1, 0.2),    # Umbral de preferencia 
+  si = c(0, 0, 0, 0, 0)     # No aplicable para función usual y lineal
+)
+
+rownames(tab_fpref) <- names(pesos_criterios)
+
+# Aplicar el método PROMETHEE I
+resultado_promethee_i <- multicriterio.metodo.promethee_i(
+  tabdecs.X = matriz_homogeneizada,
+  pesos.criterios = ahp_weights,
+  tab.fpref = tab_fpref
+)
+
+# Mostrar resultados de PROMETHEE I
+print("Flujos entrantes (Promethee I):")
+print(resultado_promethee_i$vflujos.ent)
+
+print("Flujos salientes (Promethee I):")
+print(resultado_promethee_i$vflujos.sal)
+
+print("Relación de superación (Promethee I):")
+print(resultado_promethee_i$tablarelacionsupera)
+
+# Aplicar el método PROMETHEE II
+resultado_promethee_ii <- multicriterio.metodo.promethee_ii(
+  tabdecs.X = matriz_homogeneizada,
+  pesos.criterios = ahp_weights,
+  tab.fpref = tab_fpref
+)
+
+# Mostrar resultados de PROMETHEE II
+print("Flujos netos (Promethee II):")
+print(resultado_promethee_ii$vflujos.netos)
+
+# Ordenar los países según los flujos netos
+ranking_promethee_ii <- sort(resultado_promethee_ii$vflujos.netos, decreasing = TRUE)
+print("Ranking según PROMETHEE II:")
+print(ranking_promethee_ii)
+
+```
+
+Para el metodo Promethee 2 en este caso tambien Francia es la mejor alternativa, seguida por España y Gran Bretaña.
+
+```{r}
+qgraph::qgraph(resultado_promethee_i$tablarelacionsupera)
+
+```
+En este caso tambien Francia es la mejor alternativa, seguida por España y Gran Bretaña exactamente como en el metodo Promethee 2, Electre y el ranking de AHP. 
+Entonces se puede concluir que Francia es el mejor pais en la competencia de gimnasia en el periodo 2022-2023 seguido por España y Gran Bretaña seguindo este estudio multicriterio.
+
+```{r}
+qgraph::qgraph(resultado_promethee_ii$tablarelacionsupera)
+
+```
 
 
