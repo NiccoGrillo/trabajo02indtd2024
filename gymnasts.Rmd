@@ -8,6 +8,15 @@ date: "2024-12-01"
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+# Análisis Multicriterio de Competencias de Gimnasia 2022-2023
+
+Este estudio se enfoca en evaluar el rendimiento de los países en competencias de gimnasia durante el período 2022-2023. Para ello, se utiliza un enfoque multicriterio basado en métodos como AHP, ELECTRE y PROMETHEE. El análisis considera criterios relevantes como los puntajes de dificultad, ejecución, penalizaciones, y la importancia de las rondas y competencias.
+
+
+## Importación de datos
+
+Los datos utilizados en este análisis se descargan de un repositorio público en formato CSV. Este conjunto incluye información detallada sobre las competencias, como los países participantes, los puntajes obtenidos y las características de cada evento.
+
 
 ```{r}
 # Instalar y cargar las librerías necesarias
@@ -48,8 +57,6 @@ colnames(datos_gimnasia)
 
 ```
 
-
-
 ```{r}
 ## Preprocesamiento de datos
 
@@ -73,19 +80,23 @@ datos_evaluacion <- datos_evaluacion %>%
   )
 ```
 
-## Asignación de Importancia a las Rondas
+## Asignación de Importancia
+
+En esta sección se establecen los valores de importancia para cada ronda y competencia, basándonos en su relevancia dentro del contexto competitivo. La importancia relativa se refleja en el análisis multicriterio para ponderar adecuadamente estos eventos.
+
+
+### Asignación de Importancia a las Rondas
 
 La importancia de cada ronda se asigna basándonos en su relevancia dentro de la competencia. A continuación, se detalla el razonamiento utilizado:
 
-1. **AAfinal (5 puntos):** Representa la máxima competencia individual, donde los gimnastas compiten por el ranking general en múltiples aparatos.
-2. **TeamFinal (4 puntos):** Competencia de equipos con alta relevancia, pero menos enfocada en el rendimiento individual.
-3. **final (4 puntos):** Final por aparatos que determina a los mejores gimnastas en categorías específicas.
-4. **AAqual (3 puntos):** Clasificación para el All-Around Final, importante pero no decisivo.
-5. **TeamQual (2 puntos):** Clasificación por equipos, preliminar en naturaleza.
-6. **qual (1 punto):** Primera ronda, con menor peso competitivo.
+1.  **AAfinal (5 puntos):** Representa la máxima competencia individual, donde los gimnastas compiten por el ranking general en múltiples aparatos.
+2.  **TeamFinal (4 puntos):** Competencia de equipos con alta relevancia, pero menos enfocada en el rendimiento individual.
+3.  **final (4 puntos):** Final por aparatos que determina a los mejores gimnastas en categorías específicas.
+4.  **AAqual (3 puntos):** Clasificación para el All-Around Final, importante pero no decisivo.
+5.  **TeamQual (2 puntos):** Clasificación por equipos, preliminar en naturaleza.
+6.  **qual (1 punto):** Primera ronda, con menor peso competitivo.
 
 Estos valores se integran en el análisis multicriterio para reflejar la importancia relativa de cada ronda dentro de la evaluación global.
-
 
 ```{r}
 # Definir la importancia de las rondas
@@ -103,19 +114,17 @@ datos_evaluacion <- datos_evaluacion %>%
 head(datos_evaluacion)
 ```
 
-
-
-## Asignación de Importancia a las Competiciones
+### Asignación de Importancia a las Competiciones
 
 La importancia de cada competencia se asigna en función de su prestigio, alcance geográfico y relevancia competitiva. Se han definido las siguientes categorías:
 
-1. **Prestigio Global (5 puntos):** Competiciones como los Campeonatos del Mundo de FIG, Campeonatos Europeos, Juegos Panamericanos y Juegos Asiáticos, que tienen la mayor relevancia.
-2. **Ámbito Regional (4 puntos):** Copas del Mundo, Campeonatos Continentales Senior, y Campeonatos Nacionales importantes como los de EE.UU.
-3. **Competencias Específicas (3 puntos):** Copas Challenge, Campeonatos Británicos y eventos similares con prestigio moderado.
-4. **Eventos Menores (2 puntos):** Clásicos de EE.UU., Winter Cup, y eventos invitacionales.
-5. **Eventos Locales (1 punto):** Eventos más pequeños o con menor impacto global.
+1.  **Prestigio Global (5 puntos):** Competiciones como los Campeonatos del Mundo de FIG, Campeonatos Europeos, Juegos Panamericanos y Juegos Asiáticos, que tienen la mayor relevancia.
+2.  **Ámbito Regional (4 puntos):** Copas del Mundo, Campeonatos Continentales Senior, y Campeonatos Nacionales importantes como los de EE.UU.
+3.  **Competencias Específicas (3 puntos):** Copas Challenge, Campeonatos Británicos y eventos similares con prestigio moderado.
+4.  **Eventos Menores (2 puntos):** Clásicos de EE.UU., Winter Cup, y eventos invitacionales.
+5.  **Eventos Locales (1 punto):** Eventos más pequeños o con menor impacto global.
 
-### Implementación en el Código
+
 
 ```{r asignar-importancia-competencias}
 # Definir importancia de las competencias
@@ -151,7 +160,6 @@ datos_evaluacion_limpios <- datos_evaluacion %>%
 
 head(datos_evaluacion_limpios)
 ```
-
 
 Aggragacion por pais y filtro
 
@@ -192,7 +200,9 @@ rownames(datos_pais_filtrados)
 
 ```
 
-## Nadir normalizacion
+## Normalización con el Método Nadir
+
+La normalización asegura que todos los criterios estén en la misma escala. Aquí se utiliza el método Nadir, que estandariza los valores de los criterios basándose en las mejores y peores alternativas posibles.
 
 
 ```{r}
@@ -231,14 +241,10 @@ matriz_homogeneizada_promethee <- multicriterio.homogeneizacion.promethee(
 
 # Mostrar la matriz homogeneizada
 head(matriz_homogeneizada_promethee)
-
-
 ```
+## Determinación de Pesos con AHP
 
-
-
-## AHP
-
+El método AHP se utiliza para calcular los pesos de los criterios de acuerdo con su importancia relativa. Este enfoque permite incorporar juicios subjetivos y verificar la consistencia de estos juicios mediante un índice de inconsistencia.
 
 ```{r}
 # --- AHP: Determination of Criteria Weights ---
@@ -268,7 +274,6 @@ ahp_weights
 
 ```
 
-
 ```{r}
 # --- Apply Weights to Nadir-Normalized Matrix ---
 
@@ -282,9 +287,6 @@ ranking_ahp <- ranking_ahp %>%
   arrange(desc(rank))
 head(ranking_ahp)
 ```
-
-
-
 
 ```{r}
 # --- Verificación de la consistencia del método AHP ---
@@ -308,32 +310,30 @@ if (coef_inconsistencia$RI.coef.inconsistencia < 0.1) {
 }
 
 ```
+## Método ELECTRE I
 
-
-
-## Electre I
+El método ELECTRE I identifica las alternativas dominantes evaluando los niveles de concordancia entre los criterios y aplicando umbrales de compensación. Este enfoque es útil para reducir el conjunto de alternativas a las que no están dominadas.
 
 ```{r}
 # Aplicar el método ELECTRE_I utilizando las funciones proporcionadas
 
 # Parámetros del método ELECTRE_I
-nivel_concordancia <- 0.5  # Nivel mínimo de concordancia
-umbral_no_se_compensan <- rep(Inf, ncol(matriz_homogeneizada))  # Umbral de no compensación (Inf para criterios de maximización)
+nivel_concordancia <- 0.6  # Nivel mínimo de concordancia
+umbral_no_se_compensan <- c(0.1, 0.1, 0.1, 0.1, 0.1)  # Umbral de no compensación 
 
 # Ejecutar el método ELECTRE_I
 resultados_electre <- multicriterio.metodoELECTRE_I(
   tabdecs.X = matriz_homogeneizada,  # Matriz normalizada por el método Nadir
   pesos.criterios = ahp_weights,  # Pesos calculados previamente con AHP
   nivel.concordancia.minimo.alpha = nivel_concordancia,  # Nivel de concordancia
-  no.se.compensan = umbral_no_se_compensan  # Umbrales de no compensación
+  no.se.compensan = umbral_no_se_compensan,  # Umbrales de no compensación
+  que.alternativas = TRUE  # Mostrar las alternativas
 )
+
 
 # Mostrar los resultados
 cat("Índice de concordancia:\n")
 print(resultados_electre$ind.concordancia)
-
-cat("\nÍndice de discordancia:\n")
-print(resultados_electre$ind.discordancia)
 
 cat("\nRelación de dominancia:\n")
 print(resultados_electre$relacion.dominante)
@@ -344,6 +344,7 @@ print(resultados_electre$nucleo_aprox)
 ```
 
 la sola alternativa del nucleo es la mejor alternativa:
+
 ```{r}
 # Mostrar la mejor alternativa según el núcleo aproximado
 mejor_alternativa <- rownames(datos_pais)[resultados_electre$nucleo_aprox]
@@ -353,15 +354,17 @@ mejor_alternativa
 
 Enconteces es la Francia exactamente come se esperaba por el ranking de AHP
 
-
 ```{r}
 library(qgraph)
 qgraph::qgraph(resultados_electre$relacion.dominante)
 ```
+
 Se puede ver que Francia es la mejor alternativa, dado que no es dominada por ninguna otra alternativa. El segundo pais es la España, seguido por la Gran Bretaña.
 
+## Métodos PROMETHEE I y II
 
-## Promethee 1
+PROMETHEE I clasifica las alternativas utilizando flujos de preferencia entrantes y salientes. PROMETHEE II extiende este análisis calculando flujos netos para obtener un ranking completo de las alternativas.
+
 
 ```{r}
 ## PROMETHEE I y II: Implementación en el análisis
@@ -426,8 +429,8 @@ Para el metodo Promethee 2 en este caso tambien Francia es la mejor alternativa,
 qgraph::qgraph(resultado_promethee_i$tablarelacionsupera)
 
 ```
-En este caso tambien Francia es la mejor alternativa, seguida por España y Gran Bretaña exactamente como en el metodo Promethee 2, Electre y el ranking de AHP. 
-Entonces se puede concluir que Francia es el mejor pais en la competencia de gimnasia en el periodo 2022-2023 seguido por España y Gran Bretaña seguindo este estudio multicriterio.
+
+En este caso tambien Francia es la mejor alternativa, seguida por España y Gran Bretaña exactamente como en el metodo Promethee 2, Electre y el ranking de AHP. Entonces se puede concluir que Francia es el mejor pais en la competencia de gimnasia en el periodo 2022-2023 seguido por España y Gran Bretaña seguindo este estudio multicriterio.
 
 ```{r}
 qgraph::qgraph(resultado_promethee_ii$tablarelacionsupera)
@@ -435,3 +438,6 @@ qgraph::qgraph(resultado_promethee_ii$tablarelacionsupera)
 ```
 
 
+## Resultados y Conclusiones
+
+Los resultados obtenidos de los métodos multicriterio muestran que Francia es la mejor alternativa en términos de rendimiento general en competencias de gimnasia durante 2022-2023. Este hallazgo es consistente a través de todos los métodos aplicados: AHP, ELECTRE, y PROMETHEE.
